@@ -5,10 +5,12 @@ import matplotlib.pyplot as plt
 
 
 from packets import packets
-
+from encoder import encoder
 
 
 abs_path = os.path.dirname(os.path.abspath(__file__))
+
+
 
 
 class tx:
@@ -31,6 +33,8 @@ class tx:
         self.tx_packets = packets()
         self.rx_packets = packets()
 
+        self.packet_encode = encoder()
+
     def try_tx(self, current_time):
         if not self.is_tx_finish():
             if self.backoff_counter == -self.aifs:
@@ -40,7 +44,7 @@ class tx:
                     self.cw_used = self.cw_min
                 self.backoff_counter = np.random.randint(0, self.cw_used)
                 self.packet_counter += 1
-                self.tx_packets.update(self.packet_counter, current_time)
+                self.tx_packets.update(self.packet_counter, current_time, self.packet_encode.generate())
             else:
                 self.backoff_counter -= 1
             if self.backoff_counter == -self.aifs:
@@ -58,9 +62,9 @@ class tx:
         return tx_time
     
     
-    def decode(self, current_time, tx_time, packet_data = None):
+    def decode(self, current_time, tx_time):
         if True:
-            self.rx_packets.update(self.packet_counter, current_time + tx_time, packet_data)
+            self.rx_packets.update(self.packet_counter, current_time + tx_time, self.tx_packets.get_data(self.packet_counter))
         else:
             self.rx_packets.update(self.packet_counter, )
         return True
