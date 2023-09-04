@@ -58,7 +58,7 @@ class tx:
             for i in range(self.mac_queue_length):
                 self.packet_duration_list.append(current_time + tx_time)
                 self.rx_packets.update(self.packet_counter, current_time + tx_time)
-                # self.packet_encode.decode(self.rx_packets, current_time + tx_time)
+                # self.packet_encode.decode(self.rx_packets, current_time + tx_time, self.tx_packets.get_data(self.packet_counter))
         return tx_time
     
     
