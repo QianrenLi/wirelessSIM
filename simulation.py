@@ -53,8 +53,17 @@ class tx:
             self.sended_data += self.mac_queue_length * 1500 * 8
             for i in range(self.mac_queue_length):
                 self.packet_duration_list.append(current_time + tx_time)
-                self.rx_packets.update(self.packet_counter, current_time + tx_time)
+                # self.rx_packets.update(self.packet_counter, current_time + tx_time)
+                self.decode(current_time, tx_time)
         return tx_time
+    
+    
+    def decode(self, current_time, tx_time, packet_data = None):
+        if True:
+            self.rx_packets.update(self.packet_counter, current_time + tx_time, packet_data)
+        else:
+            self.rx_packets.update(self.packet_counter, )
+        return True
 
     def is_tx_finish(self):
         if self.data_threshold > -1:

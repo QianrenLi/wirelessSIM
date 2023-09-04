@@ -12,6 +12,7 @@ STUCK_FREQUENCY = "stuck frequency"
 QOSTYPE = (STUCK, SERIOUS_STUCK, JITTER, AVERAGE_STUCK_DURATION, STUCK_FREQUENCY)
 
 from packets import packets
+from packets import TIME
 
 
 class qosHandler:
@@ -73,7 +74,7 @@ class qosHandler:
         return self
 
     def stuck_handle(self):
-        self.interval = self.tx_queue.time_stamp[max(self.tx_queue.time_stamp.keys())]
+        self.interval = self.tx_queue.time_stamp[max(self.tx_queue.time_stamp.keys())][TIME]
         tx_packet_diff, rx_packet_diff = self._calc_packet_diff(
             self.tx_queue, self.rx_queue
         )
@@ -106,8 +107,8 @@ class qosHandler:
         tx_packets.sort()
         rx_packets.sort()
         delay = []
-        for idx, timestamp in rx_packets.time_stamp.items():
-            delay.append(timestamp - tx_packets.time_stamp[idx])
+        for idx, entity in rx_packets.time_stamp.items():
+            delay.append(entity[TIME] - tx_packets.time_stamp[idx][TIME]) if entity[TIME] is not None else None
         delay = np.array(delay)
         return delay
 
@@ -120,14 +121,15 @@ class qosHandler:
         his_rx_timestamp = 0
         tx_packet_diff = []
         rx_packet_diff = []
-        for idx, timestamp in rx_packets.time_stamp.items():
-            rx_packet_diff.append(timestamp - his_rx_timestamp)
-            if idx not in tx_packets.time_stamp:
-                Exception("tx_packets and rx_packets are not match")
-                return
-            tx_packet_diff.append(tx_packets.time_stamp[idx] - his_tx_timestamp)
-            his_rx_timestamp = timestamp
-            his_tx_timestamp = tx_packets.time_stamp[idx]
+        for idx, entity in rx_packets.time_stamp.items():
+            if entity[TIME] is not None:
+                rx_packet_diff.append(entity[TIME] - his_rx_timestamp)
+                if idx not in tx_packets.time_stamp:
+                    Exception("tx_packets and rx_packets are not match")
+                    return
+                tx_packet_diff.append(tx_packets.time_stamp[idx][TIME] - his_tx_timestamp)
+                his_rx_timestamp = entity[TIME]
+                his_tx_timestamp = tx_packets.time_stamp[idx][TIME]
         return tx_packet_diff, rx_packet_diff
 
     @staticmethod
