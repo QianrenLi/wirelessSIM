@@ -4,13 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from packets import packets
+from packets import upper_packets
 from encoder import encoder
+from decoder import decoder
 
 
 abs_path = os.path.dirname(os.path.abspath(__file__))
-
-
 
 
 class tx:
@@ -19,7 +18,9 @@ class tx:
         self.sended_data = 0
         self.data_threshold = data_threshold
 
-        self.packet_counter = 0
+        self.app_packet_counter = 0
+        self.ip_packet_counter = 0
+
         self.backoff_counter = 0
         self.aifs = 2
         self.cw_min = 7
@@ -30,10 +31,14 @@ class tx:
         self.mac_queue_length = 1
         self.packet_duration_list = []
 
-        self.tx_packets = packets()
-        self.rx_packets = packets()
+        self.tx_packets = upper_packets()
+        self.rx_packets = upper_packets()
+
 
         self.packet_encode = encoder()
+
+        self.current_transmission_packet = []
+
 
     def try_tx(self, current_time):
         if not self.is_tx_finish():
@@ -43,8 +48,32 @@ class tx:
                 else:
                     self.cw_used = self.cw_min
                 self.backoff_counter = np.random.randint(0, self.cw_used)
-                self.packet_counter += 1
-                self.tx_packets.update(self.packet_counter, current_time, self.packet_encode.generate())
+                self.current_transmission_packet.clear()
+                while len(self.current_transmission_packet) < self.mac_queue_length:
+                    try:
+                        current_app_packet = self.tx_packets.get_packet(
+                            self.app_packet_counter
+                        )
+                    except:
+                        if self.data_threshold == -1:
+                            current_app_packet = self.tx_packets._generate_packets(0, "test" * 100)
+                            # print(current_app_packet)
+                        else:
+                            print("packet not found")
+                            break
+                    if current_time > current_app_packet.get_time(0):
+                        current_ip_data = current_app_packet.get_ip_packet(
+                            self.ip_packet_counter
+                        )
+                        if current_ip_data == None:
+                            self.app_packet_counter += 1
+                            self.ip_packet_counter = 0
+                            continue
+                        self.current_transmission_packet.append(current_ip_data)
+                        self.ip_packet_counter += 1
+                    else:
+                        break
+
             else:
                 self.backoff_counter -= 1
             if self.backoff_counter == -self.aifs:
@@ -55,17 +84,22 @@ class tx:
         tx_time = self.mac_queue_length * 1500 * 8 / (self.tx_mcs * 1e6)
         if not self.is_tx_finish():
             self.sended_data += self.mac_queue_length * 1500 * 8
-            for i in range(self.mac_queue_length):
+            for packet in self.current_transmission_packet:
                 self.packet_duration_list.append(current_time + tx_time)
-                self.rx_packets.update(self.packet_counter, current_time + tx_time)
+                # self.rx_packets.update(self.packet_counter, current_time + tx_time)
+                if packet is not None:
+                    self.rx_packets.update_packet(
+                        self.app_packet_counter,
+                        packet,
+                        current_time + tx_time,
+                    )
+                
                 # self.packet_encode.decode(self.rx_packets, current_time + tx_time, self.tx_packets.get_data(self.packet_counter))
         return tx_time
-    
-    
 
     def is_tx_finish(self):
         if self.data_threshold > -1:
-            return self.sended_data >= self.data_threshold
+            return self.sended_data >= self.data_threshold or self.app_packet_counter >= self.tx_packets.max_packet_id
         return False
 
 
@@ -104,4 +138,6 @@ class env:
         pass
 
 
-
+if __name__ == "__main__":
+    print("test")
+    packet_src_data = "test" * 100

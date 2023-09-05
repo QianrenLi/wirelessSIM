@@ -11,7 +11,7 @@ STUCK_FREQUENCY = "stuck frequency"
 
 QOSTYPE = (STUCK, SERIOUS_STUCK, JITTER, AVERAGE_STUCK_DURATION, STUCK_FREQUENCY)
 
-from packets import packets
+from packets import upper_packets
 from packets import TIME
 
 
@@ -37,7 +37,7 @@ class qosHandler:
         }
         self.time_unit = "s"
 
-    def update_packets(self, tx_queue: packets, rx_queue: packets):
+    def update_packets(self, tx_queue: upper_packets, rx_queue: upper_packets):
         self.tx_queue = tx_queue
         self.rx_queue = rx_queue
         return self
@@ -66,6 +66,9 @@ class qosHandler:
             return self.stuck_handle().stuck_frequency_handle()
 
     def average_stuck_duration_handle(self):
+        if self.stuck_num == 0:
+            self.average_stuck_duration = 0
+            return self
         self.average_stuck_duration = self.stuck_duration / self.stuck_num
         return self
 
@@ -103,7 +106,7 @@ class qosHandler:
         return self
 
     @staticmethod
-    def _calc_delay(tx_packets: packets, rx_packets: packets):
+    def _calc_delay(tx_packets: upper_packets, rx_packets: upper_packets):
         tx_packets.sort()
         rx_packets.sort()
         delay = []
@@ -113,7 +116,7 @@ class qosHandler:
         return delay
 
     @staticmethod
-    def _calc_packet_diff(tx_packets: packets, rx_packets: packets):
+    def _calc_packet_diff(tx_packets: upper_packets, rx_packets: upper_packets):
         tx_packets.sort()
         rx_packets.sort()
         delay = []
