@@ -3,6 +3,7 @@ from simulation import env
 from qos import qosHandler
 from packets import upper_packets
 from encoder import encoder
+from decoder import decoder
 from qos import (
     STUCK,
     SERIOUS_STUCK,
@@ -22,7 +23,15 @@ def encode_test():
     packets = upper_packets._generate_packets(0, "test" * 100)
     encode = encoder()
     print(encode.generate(packets))
+
+def decode_test():
+    packets = upper_packets._generate_packets(0, "test" * 100)
+    encode = encoder()
+    decode = decoder()
+    encoded_packets = encode.generate(packets)
+    assert(decode.decode(encoded_packets) == packets)
 encode_test()
+decode_test()
 exit()
 
 if __name__ == "__main__":
