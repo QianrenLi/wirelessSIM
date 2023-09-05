@@ -19,14 +19,14 @@ class encoder():
 
         neighbor_ids = random.sample(pkt_ind, neighbor_num)
 
-        data = None
+        appData = None
         for neighbor_id in neighbor_ids:
-            if not data:
-                data = srcPkts.get_data(neighbor_id)
+            if not appData:
+                appData = srcPkts.get_data(neighbor_id)
             else:
-                data = map(operator.xor, data, srcPkts.get_data(neighbor_id))
-            data = {'neighbor_ids': neighbor_ids, 'payload': data}
-        return data
+                appData = map(operator.xor, appData, srcPkts.get_data(neighbor_id))
+        IPdata = {'neighbor_ids': neighbor_ids, 'payload': appData}
+        return IPdata
 
 
 
