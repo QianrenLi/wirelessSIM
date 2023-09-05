@@ -2,6 +2,7 @@ from simulation import tx
 from simulation import env
 from qos import qosHandler
 from packets import upper_packets
+from encoder import encoder
 from qos import (
     STUCK,
     SERIOUS_STUCK,
@@ -16,6 +17,13 @@ def generate_packets():
     for i in range(1000):
         packets.generate_packets(i * time_delta, i, "test" * 10)
     return packets
+
+def encode_test():
+    packets = upper_packets._generate_packets(0, "test" * 100)
+    encode = encoder()
+    print(encode.generate(packets))
+encode_test()
+exit()
 
 if __name__ == "__main__":
     total_packet_num = 700
