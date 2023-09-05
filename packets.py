@@ -30,7 +30,7 @@ class packets:
     def get_data(self, packet_id):
         if packet_id in self.packets:
             return self.packets[packet_id][DATA]
-        Exception("Packet not exist")
+        raise Exception("Packet not exist")
         return None
 
     def get_time(self, packet_id):
@@ -55,10 +55,11 @@ class upper_packets(packets):
 
     def update_packet(self, packet_id, data:dict, time):
         if packet_id not in self.packets:
-            Exception("Upper packets not exist")
+            # raise Exception("Upper packets not exist")
             self.update(packet_id, time, packets(data))
         else:
             self.get_packet(packet_id).update(list(data.keys())[0], time, list(data.values())[0][DATA])
+            self.update(packet_id, time, self.get_packet(packet_id))
         return self
 
     def sort(self):
@@ -83,8 +84,7 @@ class upper_packets(packets):
     @staticmethod
     def _generate_packets(time, payload):
         if type(payload) != str:
-            Exception("Payload must be string")
-            print("Payload must be string")
+            raise Exception("Payload must be string")
             return None
         payload_byte = payload.encode("utf-8")
         _packet = packets()
