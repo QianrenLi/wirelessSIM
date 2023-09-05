@@ -38,11 +38,34 @@ class packets:
             return self.packets[packet_id][TIME]
         return None
     
+    def remove(self, packet_id):
+        pass
+    
     def asdict(self) -> dict:
         return self.packets
+    
+    def integrate(self, packets : 'packets'):
+        ## rename packet id in packets
+        current_packet_id= self.max_packet_id
+        for packet_id, packet in packets.asdict().items():
+            self.update(packet_id + current_packet_id, packet[TIME], packet[DATA])
+        return self
+    
 
-    # def __str__(self) -> str:
-    #     return str(self.packets)
+    def split(self, packet_id):
+        ## split packets into two packets
+        if packet_id not in self.packets:
+            raise Exception("Packet not exist")
+            return None
+        _packet = packets()
+        for _packet_id, data in self.packets.items():
+            if _packet_id >= packet_id:
+                _packet.update(_packet_id - packet_id, data[TIME], data[DATA])
+
+        return _packet
+
+    def __str__(self) -> str:
+        return str(self.packets)
 
 
 class upper_packets(packets):

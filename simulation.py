@@ -51,6 +51,7 @@ class tx:
             else:
                 self.backoff_counter -= 1
             if self.backoff_counter == -self.aifs:
+                ## If tx ever failed the transmission queue should not be cleared -> ignore contention problem
                 if not self.tx_failed:
                     self.current_transmission_packet.clear()
                     while len(self.current_transmission_packet) < self.mac_queue_length:

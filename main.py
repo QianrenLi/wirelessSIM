@@ -16,19 +16,20 @@ def generate_packets():
     packets = upper_packets()
     time_delta = 1e-3
     for i in range(1000):
-        packets.generate_packets(i * time_delta, i, "test" * 10)
+        packets.generate_packets(i * time_delta, i, "test" * 10000)
     return packets
 
 def encode_test():
-    packets = upper_packets._generate_packets(0, "test" * 100)
+    packets = generate_packets()
     encode = encoder()
-    print(encode.generate(packets))
+    packets.get_data(0)
+    print(encode.generate(packets.get_packet(0)))
 
 def decode_test():
-    packets = upper_packets._generate_packets(0, "test" * 100)
+    packets =  generate_packets()
     encode = encoder()
     decode = decoder()
-    encoded_packets = encode.generate(packets)
+    encoded_packets = encode.generate(packets.get_packet(0))
     assert(decode.decode(encoded_packets) == packets)
 encode_test()
 decode_test()
