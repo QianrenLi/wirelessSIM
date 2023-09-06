@@ -91,7 +91,9 @@ class packets:
         else:
             ## rename packet id in packets
             for packet_id, _packet in packet.asdict().items():
-                self.update(packet_id , _packet[TIME], _packet[DATA])
+                ## select minimum time in self.packets
+                _packet_time = min(self.get_time(packet_id), _packet[TIME]) if self.get_time(packet_id) else _packet[TIME]
+                self.update(packet_id , _packet_time, _packet[DATA])
             return self
     
 

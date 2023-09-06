@@ -124,13 +124,17 @@ class qosHandler:
         his_rx_timestamp = 0
         tx_packet_diff = []
         rx_packet_diff = []
+        counter = 0
         for idx, entity in rx_packets.packets.items():
             if entity[TIME] is not None:
-                rx_packet_diff.append(entity[TIME] - his_rx_timestamp)
-                if idx not in tx_packets.packets:
-                    Exception("tx_packets and rx_packets are not match")
-                    return
-                tx_packet_diff.append(tx_packets.packets[idx][TIME] - his_tx_timestamp)
+                if counter > 0:
+                    rx_packet_diff.append(entity[TIME] - his_rx_timestamp)
+                    if idx not in tx_packets.packets:
+                        Exception("tx_packets and rx_packets are not match")
+                        return
+                    
+                    tx_packet_diff.append(tx_packets.packets[idx][TIME] - his_tx_timestamp)
+                counter += 1 if counter == 0 else 0
                 his_rx_timestamp = entity[TIME]
                 his_tx_timestamp = tx_packets.packets[idx][TIME]
         return tx_packet_diff, rx_packet_diff
@@ -146,28 +150,28 @@ class qosHandler:
         _stuck_duration = 0
         tx_duration = 0
         for i in range(len(tx_packet_diff)):
+            tx_duration += tx_packet_diff[i]
             if rx_packet_diff[i] > 2 * tx_packet_diff[i]:
                 stuck_num += 1
-                tx_duration += tx_packet_diff[i]
-                if tx_duration < qos_type_struct[DURATION]:
-                    stuck_timer += 1
-                    _stuck_duration += rx_packet_diff[i] - tx_packet_diff[i]
-                    if stuck_timer >= qos_type_struct[TIMER]:
-                        serious_stuck_num += 1
-                        serious_stuck_duration += _stuck_duration
-                        tx_duration = 0
-                        _stuck_duration = 0
-                        stuck_timer = 0
-                    elif _stuck_duration >= qos_type_struct[STUCK_DURATION]:
-                        serious_stuck_num += 1
-                        serious_stuck_duration += _stuck_duration
-                        tx_duration = 0
-                        _stuck_duration = 0
-                        stuck_timer = 0
-                else:
+
+                if tx_duration > qos_type_struct[DURATION]:
                     tx_duration = 0
                     stuck_timer = 0
                     _stuck_duration = 0
+                stuck_timer += 1
+                _stuck_duration += rx_packet_diff[i] - tx_packet_diff[i]
+                if stuck_timer >= qos_type_struct[TIMER]:
+                    serious_stuck_num += 1
+                    serious_stuck_duration += _stuck_duration
+                    tx_duration = 0
+                    _stuck_duration = 0
+                    stuck_timer = 0
+                elif _stuck_duration >= qos_type_struct[STUCK_DURATION]:
+                    serious_stuck_num += 1
+                    serious_stuck_duration += _stuck_duration
+                    tx_duration = 0
+                    _stuck_duration = 0
+                    stuck_timer = 0
                 
                 stuck_duration += rx_packet_diff[i] - tx_packet_diff[i]
         if qos_type_struct["name"] == STUCK:

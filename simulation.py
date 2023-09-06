@@ -13,10 +13,11 @@ abs_path = os.path.dirname(os.path.abspath(__file__))
 
 
 class tx:
-    def __init__(self, tx_mcs=240, data_threshold=-1) -> None:
+    def __init__(self, tx_mcs=240, data_threshold=-1, error_prob = 0) -> None:
         self.tx_mcs = tx_mcs
         self.sended_data = 0
         self.data_threshold = data_threshold
+        self.error_prob = error_prob
 
         self.app_packet_counter = 0
         self.ip_packet_counter = 0
@@ -61,7 +62,8 @@ class tx:
                             )
                         except:
                             if self.data_threshold == -1:
-                                current_app_packet = self.tx_packets._generate_packets(0, "test" * 100)
+                                self.current_transmission_packet.append('test')
+                                continue
                                 # print(current_app_packet)
                             else:
                                 print("should stop")
@@ -70,7 +72,6 @@ class tx:
                             current_ip_data = current_app_packet.get_ip_packet(
                                 self.ip_packet_counter
                             )
-
                             if current_ip_data == None:
                                 self.app_packet_counter += 1
                                 self.ip_packet_counter = 0
@@ -89,12 +90,14 @@ class tx:
             for packet in self.current_transmission_packet:
                 self.packet_duration_list.append(current_time + tx_time)
                 # self.rx_packets.update(self.packet_counter, current_time + tx_time)
-                if packet is not None:
-                    self.rx_packets.update_packet(
-                        self.app_packet_counter,
-                        packet,
-                        current_time + tx_time,
-                    )
+                if packet is not None and self.data_threshold > -1:
+                    # probability fail
+                    if np.random.rand() > self.error_prob:
+                        self.rx_packets.update_packet(
+                            self.app_packet_counter,
+                            packet,
+                            current_time + tx_time,
+                        )
                 
                 # self.packet_encode.decode(self.rx_packets, current_time + tx_time, self.tx_packets.get_data(self.packet_counter))
         return tx_time

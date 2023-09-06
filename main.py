@@ -14,6 +14,9 @@ from qos import (
     AVERAGE_STUCK_DURATION,
     STUCK_FREQUENCY,
 )
+ATTRIBUTE = ["stuck_duration","stuck_num" , "serious_stuck_duration", "serious_stuck_num", "average_stuck_duration", "stuck_frequency", "jitter", "stuck_frequency","mean_delay"]
+TITLES = ["Stuck Duration", "Stuck Num" , "Serious Stuck Duration", "Serious Stuck Num", "Average Stuck Duration", "Stuck Frequency", "Jitter", "Stuck Frequency","Mean Delay"]
+YLABLE = ["s", "num" , "s", "num", "s", "num/s", "s", "num/s","s"]
 
 def generate_packets(**kwargs):
     if "path" in kwargs:
@@ -23,7 +26,8 @@ def generate_packets(**kwargs):
             app_packet_size = data[0][1] # B
             packets = upper_packets()
             for i in range(packet_num):
-                packets.generate_packets(i * duration, i, ''.join(random.choices(string.ascii_uppercase + string.digits, k=app_packet_size)))
+                # packets.generate_packets(i * duration, i, ''.join(random.choices(string.ascii_uppercase + string.digits, k=app_packet_size)))
+                packets.generate_packets(i * duration, i, ''.join('0'*app_packet_size))
             return packets
         if "packet_num" not in kwargs:
             return generate_packet_from_file(kwargs["path"], 1000)
@@ -53,6 +57,70 @@ def decode_test():
 # decode_test()
 # exit()
 
+def single_interface(total_packets):
+    txs_5G = [
+        tx(tx_mcs=600, data_threshold=0),
+        tx(tx_mcs=600),
+        tx(tx_mcs=600),
+        # tx(tx_mcs=600),
+    ]
+    env_5G = env(txs_5G)
+    txs_5G[0].tx_packets = total_packets
+    while True:
+        if env_5G.txs[0].is_tx_finish():
+            break
+        else:
+            env_5G.step()
+    qos_handler = (
+        qosHandler()
+        .update_packets(env_5G.txs[0].tx_packets, env_5G.txs[0].rx_packets)
+        .handle(SERIOUS_STUCK)
+        .handle(STUCK)
+        .handle(AVERAGE_STUCK_DURATION)
+        .handle(STUCK_FREQUENCY)
+        .handle(JITTER)
+    )
+    del qos_handler.tx_queue, qos_handler.rx_queue
+    return qos_handler
+
+def double_interface(tx_packet_5G, tx_packet_2_4G):
+    txs_5G = [
+        tx(tx_mcs=600, data_threshold=0),
+        tx(tx_mcs=600),
+        tx(tx_mcs=600),
+        # tx(tx_mcs=600),
+        # tx(tx_mcs=600),
+    ]
+    txs_2_4G = [
+        tx(tx_mcs=150, data_threshold=0),
+        tx(tx_mcs=150),
+        # tx(tx_mcs=150),
+        # tx(tx_mcs=150),
+        # tx(tx_mcs=150),
+    ]
+    txs_5G[0].tx_packets, txs_2_4G[0].tx_packets = tx_packet_5G, tx_packet_2_4G
+    env_5G = env(txs_5G)
+    env_2_4G = env(txs_2_4G)
+    while True:
+        if env_5G.txs[0].is_tx_finish() and env_2_4G.txs[0].is_tx_finish():
+            break
+        else:
+            env_5G.step()
+            env_2_4G.step()
+    env_5G.txs[0].tx_packets.integrate(env_2_4G.txs[0].tx_packets)
+    env_5G.txs[0].rx_packets.integrate(env_2_4G.txs[0].rx_packets)
+    qos_handler = (
+        qosHandler()
+        .update_packets(env_5G.txs[0].tx_packets, env_5G.txs[0].rx_packets)
+        .handle(SERIOUS_STUCK)
+        .handle(STUCK)
+        .handle(AVERAGE_STUCK_DURATION)
+        .handle(STUCK_FREQUENCY)
+        .handle(JITTER)
+    )
+    del qos_handler.tx_queue, qos_handler.rx_queue
+    return qos_handler
+
 if __name__ == "__main__":
     def packet_split_based_on_n1_n2(n1,n2, packets:upper_packets):
         packets_5G = upper_packets()
@@ -72,77 +140,53 @@ if __name__ == "__main__":
     
     total_packet_num = 70
     n1 = 40
-    n2 = 50
+    n2 = 66
 
-    qos_handlers = []
+    qos_handlers_double_interface = []
     x_vals = []
-    for redundance in [0, 2, 5, 8, 10]:
+    for redundance in range(15):
+        np.random.seed(0)
         n1 = n2 - redundance
         packet_num_5G = n2
         packet_num_2_4G = total_packet_num - n1
-        durations = []
-        txs_5G = [
-            tx(tx_mcs=600, data_threshold=0),
-            tx(tx_mcs=600),
-            tx(tx_mcs=600),
-            tx(tx_mcs=600),
-            # tx(tx_mcs=600),
-        ]
-        txs_2_4G = [
-            tx(tx_mcs=150, data_threshold=0),
-            tx(tx_mcs=150),
-            tx(tx_mcs=150),
-            tx(tx_mcs=150),
-            # tx(tx_mcs=150),
-        ]
-
-        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 5000)
-        txs_5G[0].tx_packets, txs_2_4G[0].tx_packets = packet_split_based_on_n1_n2(n1, n2, total_packets)
-        # txs_2_4G[1].tx_packets = generate_packets()
-        env_5G = env(txs_5G)
-        env_2_4G = env(txs_2_4G)
-        # print(txs_5G[0].tx_packets)
-        # print(txs_2_4G[0].tx_packets)
-        while True:
-            if env_5G.txs[0].is_tx_finish() and env_2_4G.txs[0].is_tx_finish():
-                break
-            else:
-                env_5G.step()
-                env_2_4G.step()
-        possible_duration = []
-        minimum_5G_packet = 0
-        minimum_duration = 10
-
-        env_5G.txs[0].tx_packets.integrate(env_2_4G.txs[0].tx_packets)
-        env_5G.txs[0].rx_packets.integrate(env_2_4G.txs[0].rx_packets)
-        
-        # print(env_5G.txs[0].rx_packets.get_data(0))
-        qos_handler = (
-            qosHandler()
-            .update_packets(env_5G.txs[0].tx_packets, env_5G.txs[0].rx_packets)
-            .handle(SERIOUS_STUCK)
-            .handle(STUCK)
-            .handle(AVERAGE_STUCK_DURATION)
-            .handle(STUCK_FREQUENCY)
-            .handle(JITTER)
-        )
+        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10000)
+        tx_packet_5G, tx_packet_2_G = packet_split_based_on_n1_n2(n1, n2, total_packets)
+        qos_handler = double_interface(tx_packet_5G, tx_packet_2_G)
+        del tx_packet_5G, tx_packet_2_G, total_packets
         print(qos_handler)
-        qos_handlers.append(qos_handler)
+        qos_handlers_double_interface.append(qos_handler)
         x_vals.append(n1)
-    ATTRIBUTE = ["stuck_duration","stuck_num" , "serious_stuck_duration", "serious_stuck_num", "average_stuck_duration", "stuck_frequency", "jitter", "stuck_frequency","mean_delay"]
-    TITLES = ["Stuck Duration", "Stuck Num" , "Serious Stuck Duration", "Serious Stuck Num", "Average Stuck Duration", "Stuck Frequency", "Jitter", "Stuck Frequency","Mean Delay"]
-    YLABLE = ["s", "num" , "s", "num", "s", "num/s", "s", "num/s","s"]
+    
+    qos_handlers_single_interface = []
+    np.random.seed(0)
+    n1 = n2 - redundance
+    packet_num_5G = n2
+    packet_num_2_4G = total_packet_num - n1
+    total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10000)
+    qos_handler = single_interface(total_packets)
+    del total_packets
+    print(qos_handler)
+    for redundance in range(15):
+        qos_handlers_single_interface.append(qos_handler)
+
     for att, _title, ylabel in zip(ATTRIBUTE, TITLES, YLABLE):
         vals = []
-        for qos_handler in qos_handlers:
+        for qos_handler in qos_handlers_double_interface:
             vals.append(getattr(qos_handler, att))
         ## plot the result
         import matplotlib.pyplot as plt
         
-        plt.plot(x_vals, vals, label = _title)
+        plt.plot(x_vals, vals, label = "double_interface")
+
+        vals = []
+        for qos_handler in qos_handlers_single_interface:
+            vals.append(getattr(qos_handler, att))
+        plt.plot(x_vals, vals, label = "single_interface")
+
         plt.title(_title)
         plt.xlabel("n1")
-        plt.ylabel(ylabel)
+        plt.ylabel(_title + "(" + ylabel + ")")
+
         plt.legend()    
         plt.savefig(f"./fig/{_title}.png")
         plt.close()
