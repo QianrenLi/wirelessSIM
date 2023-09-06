@@ -65,8 +65,9 @@ if __name__ == "__main__":
             packets_2_4G.update(packet_id,ip_packet_5G.get_time(0) , ip_packet_2_4G)
         return packets_5G, packets_2_4G
     test = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 5)
-    print(test, packet_split_based_on_n1_n2(40, 50, test))
-    exit()
+    a, b = packet_split_based_on_n1_n2(40, 50, test)
+    a.integrate(b)
+
     total_packet_num = 70
     n1 = 40
     n2 = 500

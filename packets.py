@@ -19,6 +19,7 @@ class packets:
         else:
             self.packets.update({packet_id: {TIME: _time, DATA: _data}})
         self.max_packet_id = max(self.max_packet_id, packet_id)
+        
 
     def sort(self):
         self.packets = dict(
@@ -43,6 +44,11 @@ class packets:
             return self.packets[packet_id][TIME]
         return None
     
+    def get_original_id(self, packet_id):
+        if packet_id in self.packets:
+            return self.packets[packet_id][ORIGINAL_ID]
+        return None
+    
     def remove(self, packet_id):
         if packet_id in self.packets:
             self.packets.pop(packet_id)
@@ -51,16 +57,30 @@ class packets:
     def asdict(self) -> dict:
         return self.packets
     
-    def integrate(self, packets : 'packets'):
+    def integrate(self, packet : 'packets'):
         ## determine self and packets belong to same class
-        if not isinstance(packets, type(self)):
+        if not isinstance(packet, type(self)):
             raise Exception("Integrate packets type not match")
             return None
-        ## rename packet id in packets
-        current_packet_id= self.max_packet_id
-        for packet_id, packet in packets.asdict().items():
-            self.update(packet_id + current_packet_id, packet[TIME], packet[DATA])
-        return self
+        if isinstance(self, upper_packets):
+            def recover_id(ip_packet: 'packets'):
+                _packet = packets({})
+                for packet_id in ip_packet.packets:
+                    original_id = ip_packet.get_original_id(packet_id)
+                    _packet.update(original_id, ip_packet.get_time(packet_id), ip_packet.get_data(packet_id), original_id= original_id)
+                return _packet
+            def integrate_by_original_id(A_packet:upper_packets, B_packet:upper_packets):
+                for _packet_id in B_packet.packets:
+                    B_data = recover_id(B_packet.get_packet(_packet_id))
+                    ## update each dict in data of B_data
+                    A_packet.get_packet(_packet_id).integrate(B_data)
+                return A_packet
+            return integrate_by_original_id(self, packet)
+        else:
+            ## rename packet id in packets
+            for packet_id, _packet in packet.asdict().items():
+                self.update(packet_id , _packet[TIME], _packet[DATA])
+            return self
     
 
     def split(self, **kwargs) -> 'packets':
@@ -113,6 +133,9 @@ class upper_packets(packets):
         self.packets = {}
 
     def update_packet(self, packet_id, data:dict, time):
+        '''
+        update ip packet to correspond app packet
+        '''
         if packet_id not in self.packets:
             # raise Exception("Upper packets not exist")
             self.update(packet_id, time, packets(data))
@@ -164,6 +187,7 @@ class upper_packets(packets):
         _packet = self._generate_packets(time, payload)
         self.update(packet_id, time, _packet)
         return self
+    
     
     def aggregate_packets(self) -> packets:
         '''
@@ -220,4 +244,4 @@ if __name__ == "__main__":
         print(packet)
         _ = packet.split(1)
         print(packet, _)
-    modify_test()
+    # modify_test()
