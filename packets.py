@@ -1,6 +1,8 @@
 TIME = "time"
 DATA = "data"
 PAYLOAD = "payload"
+ORIGINAL_ID = "original_id"
+import copy
 
 
 class packets:
@@ -8,11 +10,14 @@ class packets:
         self.packets = packets
         self.max_packet_id = 0
 
-    def update(self, packet_id, time, data=None):
+    def update(self, packet_id, time, data=None, original_id = None):
         # data : {"payload": payload}
-        _time = self.packets[packet_id][TIME] if time == None and packet_id in self.packets else time 
-        _data = self.packets[packet_id][DATA] if data == None and packet_id in self.packets else data
-        self.packets.update({packet_id: {TIME: _time, DATA: _data}})
+        _time = self.packets[packet_id][TIME] if time == None and packet_id in self.packets else time
+        _data = self.packets[packet_id][DATA] if data == None and packet_id in self.packets else copy.copy(data)
+        if original_id is not None:
+            self.packets.update({packet_id: {TIME: _time, DATA: _data, ORIGINAL_ID: original_id}})
+        else:
+            self.packets.update({packet_id: {TIME: _time, DATA: _data}})
         self.max_packet_id = max(self.max_packet_id, packet_id)
 
     def sort(self):
@@ -39,12 +44,18 @@ class packets:
         return None
     
     def remove(self, packet_id):
+        if packet_id in self.packets:
+            self.packets.pop(packet_id)
         pass
     
     def asdict(self) -> dict:
         return self.packets
     
     def integrate(self, packets : 'packets'):
+        ## determine self and packets belong to same class
+        if not isinstance(packets, type(self)):
+            raise Exception("Integrate packets type not match")
+            return None
         ## rename packet id in packets
         current_packet_id= self.max_packet_id
         for packet_id, packet in packets.asdict().items():
@@ -52,17 +63,42 @@ class packets:
         return self
     
 
-    def split(self, packet_id):
-        ## split packets into two packets
-        if packet_id not in self.packets:
-            raise Exception("Packet not exist")
-            return None
-        _packet = packets()
-        for _packet_id, data in self.packets.items():
-            if _packet_id >= packet_id:
-                _packet.update(_packet_id - packet_id, data[TIME], data[DATA])
+    def split(self, **kwargs) -> 'packets':
+        if "n1" in kwargs and "n2" in kwargs:
+            n1 = kwargs["n1"]
+            n2 = kwargs["n2"]
+            assert(n1 in self.packets and n2 in self.packets)
+            _packet_n1 = upper_packets({}) if isinstance(self, upper_packets) else packets({})
+            ## iterate in reverse order
+            for _packet_id, data in sorted(self.packets.items(), reverse=True):
+                if _packet_id > n1:
+                    _packet_n1.update(_packet_id - n1, data[TIME], data[DATA], original_id= _packet_id)
 
-        return _packet
+
+            _packet_n2 = upper_packets({}) if isinstance(self, upper_packets) else packets({})
+            for _packet_id, data in self.packets.items():
+                if _packet_id <= n2:
+                    _packet_n2.update(_packet_id, data[TIME], data[DATA], original_id= _packet_id)
+            return _packet_n1, _packet_n2
+
+        elif "packet_id" in kwargs:
+            packet_id = kwargs["packet_id"]
+            if packet_id not in self.packets:
+                raise Exception("Packet not exist")
+                return None
+            _packet = upper_packets() if isinstance(self, upper_packets) else packets()
+            for _packet_id, data in self.packets.items():
+                if _packet_id >= packet_id:
+                    _packet.update(_packet_id - packet_id, data[TIME], data)
+            for _packet_id in list(self.packets.keys()):
+                if _packet_id >= packet_id:
+                    self.remove(_packet_id)
+            return _packet
+        else:
+            raise Exception("Split packets error")
+            return None
+    
+
 
     def __str__(self) -> str:
         return str(self.packets)
@@ -148,6 +184,40 @@ class upper_packets(packets):
         return super().get_time(packet_id)
 
 if __name__ == "__main__":
-    test_app_packet = upper_packets()
-    test_app_packet.generate_packets(0, 0, "test" * 1000)
-    print(test_app_packet.correct_packets(0) == "test" * 1000)
+    def remove_test():
+        packets = upper_packets()
+        packets.generate_packets(0, 0, "test" * 10000)
+        packets.generate_packets(0, 1, "test" * 10000)
+        packets.generate_packets(0, 2, "test" * 10000)
+        packets.remove(1)
+        print(packets)
+    def split_test():
+        packets = upper_packets()
+        packets.generate_packets(0, 0, "test" * 10000)
+        packets.generate_packets(0, 1, "test" * 10000)
+        packets.generate_packets(0, 2, "test" * 10000)
+        print(packets)
+        _ = packets.split(1)
+        print(packets, _)
+    def integrate_test():
+        packets = upper_packets()
+        packets.generate_packets(0, 0, "test" * 10000)
+        packets.generate_packets(0, 1, "test" * 10000)
+        packets.generate_packets(0, 2, "test" * 10000)
+        packets2 = upper_packets()
+        packets2.generate_packets(0, 0, "test" * 10000)
+        packets2.generate_packets(0, 1, "test" * 10000)
+        packets2.generate_packets(0, 2, "test" * 10000)
+        packets.integrate(packets2)
+        print(packets)
+    def modify_test():
+        packet = upper_packets()
+        packet.generate_packets(0, 0, "test" * 10000)
+        packet.generate_packets(0, 1, "test" * 10000)
+        packet.generate_packets(0, 2, "test" * 10000)
+        print(packet)
+        packet.update(1, 0 , {0:packets()})
+        print(packet)
+        _ = packet.split(1)
+        print(packet, _)
+    modify_test()
