@@ -44,6 +44,18 @@ class packets:
             return self.packets[packet_id][TIME]
         return None
     
+    def get_maximum_time(self):
+        maximum_time = 0
+        for packet_id in self.packets:
+            if self.get_time(packet_id) > maximum_time:
+                maximum_time = self.get_time(packet_id)
+        return maximum_time
+    
+    def update_time(self, packet_id, time):
+        if packet_id in self.packets:
+            self.packets[packet_id][TIME] = time
+        return self
+    
     def get_original_id(self, packet_id):
         if packet_id in self.packets:
             return self.packets[packet_id][ORIGINAL_ID]
@@ -72,8 +84,8 @@ class packets:
             def integrate_by_original_id(A_packet:upper_packets, B_packet:upper_packets):
                 for _packet_id in B_packet.packets:
                     B_data = recover_id(B_packet.get_packet(_packet_id))
-                    ## update each dict in data of B_data
                     A_packet.get_packet(_packet_id).integrate(B_data)
+                    A_packet.update_time(_packet_id, A_packet.get_packet(_packet_id).get_maximum_time())
                 return A_packet
             return integrate_by_original_id(self, packet)
         else:
@@ -90,9 +102,11 @@ class packets:
             assert(n1 in self.packets and n2 in self.packets)
             _packet_n1 = upper_packets({}) if isinstance(self, upper_packets) else packets({})
             ## iterate in reverse order
+            ip_packet_id = 0
             for _packet_id, data in sorted(self.packets.items(), reverse=True):
                 if _packet_id > n1:
-                    _packet_n1.update(_packet_id - n1, data[TIME], data[DATA], original_id= _packet_id)
+                    _packet_n1.update(ip_packet_id, data[TIME], data[DATA], original_id= _packet_id)
+                    ip_packet_id += 1
 
 
             _packet_n2 = upper_packets({}) if isinstance(self, upper_packets) else packets({})
@@ -106,7 +120,7 @@ class packets:
             if packet_id not in self.packets:
                 raise Exception("Packet not exist")
                 return None
-            _packet = upper_packets() if isinstance(self, upper_packets) else packets()
+            _packet = upper_packets({}) if isinstance(self, upper_packets) else packets({})
             for _packet_id, data in self.packets.items():
                 if _packet_id >= packet_id:
                     _packet.update(_packet_id - packet_id, data[TIME], data)
@@ -140,7 +154,11 @@ class upper_packets(packets):
             # raise Exception("Upper packets not exist")
             self.update(packet_id, time, packets(data))
         else:
-            self.get_packet(packet_id).update(list(data.keys())[0], time, list(data.values())[0][DATA])
+            ## if original id exist:
+            if ORIGINAL_ID in list(data.values())[0]:
+                self.get_packet(packet_id).update(list(data.keys())[0], time, list(data.values())[0][DATA], original_id= list(data.values())[0][ORIGINAL_ID])
+            else:
+                self.get_packet(packet_id).update(list(data.keys())[0], time, list(data.values())[0][DATA])
             self.update(packet_id, time, self.get_packet(packet_id))
         return self
 
@@ -169,7 +187,7 @@ class upper_packets(packets):
             raise Exception("Payload must be string")
             return None
         payload_byte = payload.encode("utf-8")
-        _packet = packets()
+        _packet = packets({})
         _packet_id = 0
         while True:
             _packet.update(_packet_id, time, {PAYLOAD: payload_byte[:upper_packets.PAYLOAD_LEN]})
@@ -193,7 +211,7 @@ class upper_packets(packets):
         '''
         for each ip_packets in upper packets, aggregate them into one ip_packet with payload and time, the packet_id is increase for each ip_packet
         '''
-        _packet = packets()
+        _packet = packets({})
         _packet_id = 0
         for packet_id in self.packets:
             _packet.update(_packet_id, self.get_time(packet_id), {PAYLOAD: self.get_data(packet_id)})

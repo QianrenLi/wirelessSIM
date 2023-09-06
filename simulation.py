@@ -64,11 +64,13 @@ class tx:
                                 current_app_packet = self.tx_packets._generate_packets(0, "test" * 100)
                                 # print(current_app_packet)
                             else:
+                                print("should stop")
                                 break
                         if current_time > current_app_packet.get_time(0):
                             current_ip_data = current_app_packet.get_ip_packet(
                                 self.ip_packet_counter
                             )
+
                             if current_ip_data == None:
                                 self.app_packet_counter += 1
                                 self.ip_packet_counter = 0
@@ -99,7 +101,7 @@ class tx:
 
     def is_tx_finish(self):
         if self.data_threshold > -1:
-            return self.sended_data >= self.data_threshold or self.app_packet_counter >= self.tx_packets.max_packet_id
+            return self.app_packet_counter >= self.tx_packets.max_packet_id
         return False
 
 

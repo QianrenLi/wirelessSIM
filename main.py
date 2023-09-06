@@ -61,37 +61,48 @@ if __name__ == "__main__":
         for packet_id in packets.packets:
             packet = packets.get_packet(packet_id)
             ip_packet_2_4G, ip_packet_5G = packet.split(n1 = n1, n2 = n2)
-            packets_5G.update(packet_id,ip_packet_5G.get_time(0) ,ip_packet_5G)
-            packets_2_4G.update(packet_id,ip_packet_5G.get_time(0) , ip_packet_2_4G)
+            ip_packet_2_4G.update_time( 10, packets.get_time(packet_id))
+            packets_5G.update(packet_id, packets.get_time(packet_id) ,ip_packet_5G)
+            packets_2_4G.update(packet_id,packets.get_time(packet_id) , ip_packet_2_4G)
         return packets_5G, packets_2_4G
-    test = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 5)
-    a, b = packet_split_based_on_n1_n2(40, 50, test)
-    a.integrate(b)
-
+    # test = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 5)
+    # a, b = packet_split_based_on_n1_n2(40, 50, test)
+    # a.integrate(b)
+    # exit()
+    
     total_packet_num = 70
     n1 = 40
-    n2 = 500
-    mean_delay = []
-    variance = []
+    n2 = 50
+
+    qos_handlers = []
+    x_vals = []
     for redundance in [0, 2, 5, 8, 10]:
         n1 = n2 - redundance
         packet_num_5G = n2
         packet_num_2_4G = total_packet_num - n1
         durations = []
         txs_5G = [
-            tx(tx_mcs=600, data_threshold=packet_num_5G * 1500 * 8),
+            tx(tx_mcs=600, data_threshold=0),
             tx(tx_mcs=600),
+            tx(tx_mcs=600),
+            tx(tx_mcs=600),
+            # tx(tx_mcs=600),
         ]
-        txs_5G[0].tx_packets = generate_packets()
         txs_2_4G = [
-            tx(tx_mcs=150, data_threshold=packet_num_2_4G * 1500 * 8),
+            tx(tx_mcs=150, data_threshold=0),
             tx(tx_mcs=150),
+            tx(tx_mcs=150),
+            tx(tx_mcs=150),
+            # tx(tx_mcs=150),
         ]
-        txs_2_4G[0].tx_packets = generate_packets()
+
+        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 5000)
+        txs_5G[0].tx_packets, txs_2_4G[0].tx_packets = packet_split_based_on_n1_n2(n1, n2, total_packets)
         # txs_2_4G[1].tx_packets = generate_packets()
         env_5G = env(txs_5G)
         env_2_4G = env(txs_2_4G)
-
+        # print(txs_5G[0].tx_packets)
+        # print(txs_2_4G[0].tx_packets)
         while True:
             if env_5G.txs[0].is_tx_finish() and env_2_4G.txs[0].is_tx_finish():
                 break
@@ -101,9 +112,10 @@ if __name__ == "__main__":
         possible_duration = []
         minimum_5G_packet = 0
         minimum_duration = 10
-        # compare the data of tx packets and rx packets of packet
 
-        print(env_5G.txs[0].tx_packets.get_data(0) == env_5G.txs[0].rx_packets.get_data(0))
+        env_5G.txs[0].tx_packets.integrate(env_2_4G.txs[0].tx_packets)
+        env_5G.txs[0].rx_packets.integrate(env_2_4G.txs[0].rx_packets)
+        
         # print(env_5G.txs[0].rx_packets.get_data(0))
         qos_handler = (
             qosHandler()
@@ -115,3 +127,22 @@ if __name__ == "__main__":
             .handle(JITTER)
         )
         print(qos_handler)
+        qos_handlers.append(qos_handler)
+        x_vals.append(n1)
+    ATTRIBUTE = ["stuck_duration","stuck_num" , "serious_stuck_duration", "serious_stuck_num", "average_stuck_duration", "stuck_frequency", "jitter", "stuck_frequency","mean_delay"]
+    TITLES = ["Stuck Duration", "Stuck Num" , "Serious Stuck Duration", "Serious Stuck Num", "Average Stuck Duration", "Stuck Frequency", "Jitter", "Stuck Frequency","Mean Delay"]
+    YLABLE = ["s", "num" , "s", "num", "s", "num/s", "s", "num/s","s"]
+    for att, _title, ylabel in zip(ATTRIBUTE, TITLES, YLABLE):
+        vals = []
+        for qos_handler in qos_handlers:
+            vals.append(getattr(qos_handler, att))
+        ## plot the result
+        import matplotlib.pyplot as plt
+        
+        plt.plot(x_vals, vals, label = _title)
+        plt.title(_title)
+        plt.xlabel("n1")
+        plt.ylabel(ylabel)
+        plt.legend()    
+        plt.savefig(f"./fig/{_title}.png")
+        plt.close()

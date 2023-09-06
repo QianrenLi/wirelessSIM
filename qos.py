@@ -143,17 +143,32 @@ class qosHandler:
         serious_stuck_duration = 0
         stuck_timer = 0
         stuck_duration = 0
+        _stuck_duration = 0
+        tx_duration = 0
         for i in range(len(tx_packet_diff)):
             if rx_packet_diff[i] > 2 * tx_packet_diff[i]:
                 stuck_num += 1
-                if stuck_duration < qos_type_struct[DURATION]:
+                tx_duration += tx_packet_diff[i]
+                if tx_duration < qos_type_struct[DURATION]:
                     stuck_timer += 1
-                    stuck_duration += rx_packet_diff[i] - tx_packet_diff[i]
+                    _stuck_duration += rx_packet_diff[i] - tx_packet_diff[i]
                     if stuck_timer >= qos_type_struct[TIMER]:
                         serious_stuck_num += 1
-                        serious_stuck_duration += stuck_duration
-                    elif stuck_duration >= qos_type_struct[STUCK_DURATION]:
-                        serious_stuck_duration += stuck_duration
+                        serious_stuck_duration += _stuck_duration
+                        tx_duration = 0
+                        _stuck_duration = 0
+                        stuck_timer = 0
+                    elif _stuck_duration >= qos_type_struct[STUCK_DURATION]:
+                        serious_stuck_num += 1
+                        serious_stuck_duration += _stuck_duration
+                        tx_duration = 0
+                        _stuck_duration = 0
+                        stuck_timer = 0
+                else:
+                    tx_duration = 0
+                    stuck_timer = 0
+                    _stuck_duration = 0
+                
                 stuck_duration += rx_packet_diff[i] - tx_packet_diff[i]
         if qos_type_struct["name"] == STUCK:
             return stuck_num, stuck_duration
