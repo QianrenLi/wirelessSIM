@@ -3,7 +3,7 @@ DATA = "data"
 PAYLOAD = "payload"
 ORIGINAL_ID = "original_id"
 import copy
-
+DATA_ABSTRACT = True
 
 class packets:
     def __init__(self, packets = {}) -> None:
@@ -182,7 +182,7 @@ class upper_packets(packets):
         for _packet_id, data in packet.packets.items():
             payload+=data[DATA][PAYLOAD]
         return payload
-    
+
     @staticmethod
     def _generate_packets(time, payload):
         if type(payload) != str:
@@ -192,7 +192,10 @@ class upper_packets(packets):
         _packet = packets({})
         _packet_id = 0
         while True:
-            _packet.update(_packet_id, time, {PAYLOAD: payload_byte[:upper_packets.PAYLOAD_LEN]})
+            if DATA_ABSTRACT:
+                _packet.update(_packet_id, time, {PAYLOAD: ''})
+            else:
+                _packet.update(_packet_id, time, {PAYLOAD: payload_byte[:upper_packets.PAYLOAD_LEN]})
             _packet_id += 1
             payload_byte = payload_byte[upper_packets.PAYLOAD_LEN:]
             if len(payload_byte) == 0:

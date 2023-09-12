@@ -50,6 +50,7 @@ class qosHandler:
             + f"mean delay: {self.mean_delay} ({self.time_unit})\njitter: {self.jitter} ({self.time_unit})\n"
             + f"average stuck duration: {self.average_stuck_duration} ({self.time_unit})\n"
             + f"stuck frequency: {self.stuck_frequency} (num/{self.time_unit})\n"
+            + f"interval: {self.interval} ({self.time_unit})\n"
         )
 
     def handle(self, qos_type):
@@ -77,7 +78,7 @@ class qosHandler:
         return self
 
     def stuck_handle(self):
-        self.interval = self.tx_queue.packets[max(self.tx_queue.packets.keys())][TIME]
+        self.interval = self.rx_queue.packets[max(self.tx_queue.packets.keys())][TIME]
         tx_packet_diff, rx_packet_diff = self._calc_packet_diff(
             self.tx_queue, self.rx_queue
         )

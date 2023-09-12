@@ -1,5 +1,6 @@
 from simulation import tx
 from simulation import env
+from tqdm import tqdm
 from qos import qosHandler
 from packets import upper_packets
 from encoder import encoder
@@ -14,9 +15,9 @@ from qos import (
     AVERAGE_STUCK_DURATION,
     STUCK_FREQUENCY,
 )
-ATTRIBUTE = ["stuck_duration","stuck_num" , "serious_stuck_duration", "serious_stuck_num", "average_stuck_duration", "stuck_frequency", "jitter", "stuck_frequency","mean_delay"]
-TITLES = ["Stuck Duration", "Stuck Num" , "Serious Stuck Duration", "Serious Stuck Num", "Average Stuck Duration", "Stuck Frequency", "Jitter", "Stuck Frequency","Mean Delay"]
-YLABLE = ["s", "num" , "s", "num", "s", "num/s", "s", "num/s","s"]
+ATTRIBUTE = ["stuck_duration","stuck_num" , "serious_stuck_duration", "serious_stuck_num", "average_stuck_duration", "stuck_frequency", "jitter", "stuck_frequency","mean_delay","interval"]
+TITLES = ["Stuck Duration", "Stuck Num" , "Serious Stuck Duration", "Serious Stuck Num", "Average Stuck Duration", "Stuck Frequency", "Jitter", "Stuck Frequency","Mean Delay", "Interval"]
+YLABLE = ["s", "num" , "s", "num", "s", "num/s", "s", "num/s","s", "s"]
 
 def generate_packets(**kwargs):
     if "path" in kwargs:
@@ -24,6 +25,7 @@ def generate_packets(**kwargs):
             data = np.load(path)
             duration = data[0][0] / 1e9 # s
             app_packet_size = data[0][1] # B
+            ## app_packet_size = 1200
             packets = upper_packets()
             for i in range(packet_num):
                 # packets.generate_packets(i * duration, i, ''.join(random.choices(string.ascii_uppercase + string.digits, k=app_packet_size)))
@@ -137,36 +139,56 @@ if __name__ == "__main__":
     # a, b = packet_split_based_on_n1_n2(40, 50, test)
     # a.integrate(b)
     # exit()
-    
+    random.seed(0)
     total_packet_num = 70
     n1 = 40
-    n2 = 66
+    n2 = 60
 
     qos_handlers_double_interface = []
     x_vals = []
-    for redundance in range(15):
-        np.random.seed(0)
-        n1 = n2 - redundance
-        packet_num_5G = n2
-        packet_num_2_4G = total_packet_num - n1
-        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10000)
-        tx_packet_5G, tx_packet_2_G = packet_split_based_on_n1_n2(n1, n2, total_packets)
-        qos_handler = double_interface(tx_packet_5G, tx_packet_2_G)
-        del tx_packet_5G, tx_packet_2_G, total_packets
-        print(qos_handler)
-        qos_handlers_double_interface.append(qos_handler)
+    redundance_tuple =(0, 10, 1)
+    testing_num = 100000
+    for redundance in tqdm(range(redundance_tuple[0], redundance_tuple[1], redundance_tuple[2])):
+        _qos_handlers_double_interface = []
+        for trial in tqdm(range(testing_num)):
+            n1 = n2 - redundance
+            total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10)
+            tx_packet_5G, tx_packet_2_G = packet_split_based_on_n1_n2(n1, n2, total_packets)
+            del total_packets
+            qos_handler = double_interface(tx_packet_5G, tx_packet_2_G)
+            del tx_packet_5G, tx_packet_2_G
+            # print(qos_handler)
+            _qos_handlers_double_interface.append(qos_handler)
         x_vals.append(n1)
+        ## average the qos_handler result
+        qos_handler = qosHandler()
+        for att in ATTRIBUTE:
+            val = 0
+            for _qos_handler in _qos_handlers_double_interface:
+                val += getattr(_qos_handler, att)
+            setattr(qos_handler, att, val / len(_qos_handlers_double_interface))
+        qos_handler.stuck_frequency = qos_handler.stuck_num / qos_handler.interval
+        qos_handlers_double_interface.append(qos_handler)
+        print(qos_handler)
+
     
     qos_handlers_single_interface = []
-    np.random.seed(0)
-    n1 = n2 - redundance
-    packet_num_5G = n2
-    packet_num_2_4G = total_packet_num - n1
-    total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10000)
-    qos_handler = single_interface(total_packets)
-    del total_packets
+    _qos_handlers_double_interface = []
+    for trial in tqdm(range(testing_num)):
+        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10)
+        qos_handler = single_interface(total_packets)
+        del total_packets
+        # print(qos_handler)
+        _qos_handlers_double_interface.append(qos_handler)
+    for att in ATTRIBUTE:
+        val = 0
+        for _qos_handler in _qos_handlers_double_interface:
+            val += getattr(_qos_handler, att)
+        setattr(qos_handler, att, val / len(_qos_handlers_double_interface))
+    qos_handler.stuck_frequency = qos_handler.stuck_num / qos_handler.interval
     print(qos_handler)
-    for redundance in range(15):
+
+    for redundance in range(redundance_tuple[0], redundance_tuple[1], redundance_tuple[2]):
         qos_handlers_single_interface.append(qos_handler)
 
     for att, _title, ylabel in zip(ATTRIBUTE, TITLES, YLABLE):
@@ -177,6 +199,7 @@ if __name__ == "__main__":
         import matplotlib.pyplot as plt
         
         plt.plot(x_vals, vals, label = "double_interface")
+        print(vals)
 
         vals = []
         for qos_handler in qos_handlers_single_interface:
