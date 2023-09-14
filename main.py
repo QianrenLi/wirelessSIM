@@ -62,11 +62,10 @@ def decode_test():
 def single_interface(total_packets):
     txs_5G = [
         tx(tx_mcs=600, data_threshold=0),
-        tx(tx_mcs=600),
-        tx(tx_mcs=600),
         # tx(tx_mcs=600),
     ]
     env_5G = env(txs_5G)
+    env_5G.if_id = 0.1
     txs_5G[0].tx_packets = total_packets
     while True:
         if env_5G.txs[0].is_tx_finish():
@@ -88,21 +87,20 @@ def single_interface(total_packets):
 def double_interface(tx_packet_5G, tx_packet_2_4G):
     txs_5G = [
         tx(tx_mcs=600, data_threshold=0),
-        tx(tx_mcs=600),
-        tx(tx_mcs=600),
         # tx(tx_mcs=600),
         # tx(tx_mcs=600),
     ]
     txs_2_4G = [
         tx(tx_mcs=150, data_threshold=0),
-        tx(tx_mcs=150),
         # tx(tx_mcs=150),
         # tx(tx_mcs=150),
         # tx(tx_mcs=150),
     ]
     txs_5G[0].tx_packets, txs_2_4G[0].tx_packets = tx_packet_5G, tx_packet_2_4G
     env_5G = env(txs_5G)
+    env_5G.if_id = 0.1
     env_2_4G = env(txs_2_4G)
+    env_2_4G.if_id = 0
     while True:
         if env_5G.txs[0].is_tx_finish() and env_2_4G.txs[0].is_tx_finish():
             break
@@ -146,13 +144,14 @@ if __name__ == "__main__":
 
     qos_handlers_double_interface = []
     x_vals = []
-    redundance_tuple =(0, 10, 1)
-    testing_num = 100000
+    redundance_tuple =(0, 20, 2)
+    testing_num = 1
+    packet_num = 1000
     for redundance in tqdm(range(redundance_tuple[0], redundance_tuple[1], redundance_tuple[2])):
         _qos_handlers_double_interface = []
         for trial in tqdm(range(testing_num)):
             n1 = n2 - redundance
-            total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10)
+            total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = packet_num)
             tx_packet_5G, tx_packet_2_G = packet_split_based_on_n1_n2(n1, n2, total_packets)
             del total_packets
             qos_handler = double_interface(tx_packet_5G, tx_packet_2_G)
@@ -175,7 +174,7 @@ if __name__ == "__main__":
     qos_handlers_single_interface = []
     _qos_handlers_double_interface = []
     for trial in tqdm(range(testing_num)):
-        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = 10)
+        total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = packet_num)
         qos_handler = single_interface(total_packets)
         del total_packets
         # print(qos_handler)

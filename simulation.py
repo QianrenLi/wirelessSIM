@@ -30,7 +30,7 @@ class tx:
         self.cw_used = self.cw_min
         self.tx_failed = True
 
-        self.mac_queue_length = 5
+        self.mac_queue_length = 1
         self.tx_packets = upper_packets()
         self.rx_packets = upper_packets()
         self.packet_encode = encoder()
@@ -115,8 +115,10 @@ class env:
     def __init__(self, txs) -> None:
         self.txs = txs
         self.compete_interval = 20e-6
+        self.interference_interval = 4e-4
         self.status = "idle"
         self.current_time = 0
+        self.if_id = 0
 
     def set_tx_failed(self, tx_suc, tx_id: bool):
         for tx_idx, tx in enumerate(self.txs):
@@ -127,6 +129,8 @@ class env:
         tx_suc = []
         send_tx = None
         _temp_txs = list(self.txs)
+        if random.random() < self.if_id:
+            return self.interference_interval
         for tx in _temp_txs:
             tx_suc.append(tx.try_tx(self.current_time))
             if tx_suc[-1] == 1:
