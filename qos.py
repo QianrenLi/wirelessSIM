@@ -16,10 +16,10 @@ from packets import TIME
 
 
 class qosHandler:
-    def __init__(self) -> None:
+    def __init__(self, tx_queue = None, rx_queue = None) -> None:
         self.qos_type = None
-        self.tx_queue = None
-        self.rx_queue = None
+        self.tx_queue = tx_queue
+        self.rx_queue = rx_queue
 
         self.stuck_num = 0
         self.serious_stuck_num = 0
@@ -36,6 +36,15 @@ class qosHandler:
             STUCK_DURATION: 0.2,
         }
         self.time_unit = "s"
+
+        if tx_queue is not None and rx_queue is not None:
+            (
+            self.handle(SERIOUS_STUCK)
+            .handle(STUCK)
+            .handle(AVERAGE_STUCK_DURATION)
+            .handle(STUCK_FREQUENCY)
+            .handle(JITTER)
+            )
 
     def update_packets(self, tx_queue: upper_packets, rx_queue: upper_packets):
         self.tx_queue = tx_queue

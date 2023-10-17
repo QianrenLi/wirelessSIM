@@ -51,6 +51,15 @@ class packets:
                 maximum_time = self.get_time(packet_id)
         return maximum_time
     
+    def get_maximum_time_index(self):
+        maximum_time = 0
+        maximum_time_index = 0
+        for packet_id in self.packets:
+            if self.get_time(packet_id) > maximum_time:
+                maximum_time = self.get_time(packet_id)
+                maximum_time_index = packet_id
+        return maximum_time_index
+
     def update_time(self, packet_id, time):
         if packet_id in self.packets:
             self.packets[packet_id][TIME] = time
@@ -69,7 +78,7 @@ class packets:
     def asdict(self) -> dict:
         return self.packets
     
-    def integrate(self, packet : 'packets'):
+    def integrate(self, packet : 'packets', probe = False):
         ## determine self and packets belong to same class
         if not isinstance(packet, type(self)):
             raise Exception("Integrate packets type not match")
@@ -82,10 +91,14 @@ class packets:
                     _packet.update(original_id, ip_packet.get_time(packet_id), ip_packet.get_data(packet_id), original_id= original_id)
                 return _packet
             def integrate_by_original_id(A_packet:upper_packets, B_packet:upper_packets):
+                idexs = []
                 for _packet_id in B_packet.packets:
                     B_data = recover_id(B_packet.get_packet(_packet_id))
-                    A_packet.get_packet(_packet_id).integrate(B_data)
+                    _ = A_packet.get_packet(_packet_id).integrate(B_data,probe)
+                    idexs.append(_[1]) if probe else None
                     A_packet.update_time(_packet_id, A_packet.get_packet(_packet_id).get_maximum_time())
+                if probe:
+                    return A_packet, idexs
                 return A_packet
             return integrate_by_original_id(self, packet)
         else:
@@ -94,6 +107,8 @@ class packets:
                 ## select minimum time in self.packets
                 _packet_time = min(self.get_time(packet_id), _packet[TIME]) if self.get_time(packet_id) else _packet[TIME]
                 self.update(packet_id , _packet_time, _packet[DATA])
+            if probe:
+                return self, self.get_maximum_time_index()
             return self
     
 
