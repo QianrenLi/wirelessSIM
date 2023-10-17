@@ -95,7 +95,7 @@ class channelMac():
         self.interference_ratio = 0
     
     def data_to_time(self, data_len):
-        tx_MCS = max(1 , self.MCS * (1 - random.random() * self.interference_ratio))
+        tx_MCS = max(1 , self.MCS * (1 - self.interference_ratio))
         
         return np.ceil((data_len * 1500 * 8 / (tx_MCS * 1e6)) / self.slot_time)
 
@@ -267,7 +267,7 @@ def executor(pro_id, n1,  return_dit):
     durations = []
     for i in range(10):
         channel = channelObj()
-        channel.channel_5G.interference_ratio = 1
+        channel.channel_5G.interference_ratio = 0.5
         txs = [txObj(id) for id in range(1)]
         txs[0].n1 = n1
         stuck_num = channel.determine_channel_status(txs, 1000)
@@ -280,23 +280,22 @@ if __name__ == "__main__":
     
     n1_stuck_nums = []
     n1_stuck_frequency = []
-    for n1 in [54, 54, 54, 54, 54]:
+    for n1 in [50]:
         stuck_nums = []
         durations = []
         return_dit = multiprocessing.Manager().dict()
         processes = []
-        for _ in range(12): 
-            random.seed(0)
-            for i in range(14):
-                p = multiprocessing.Process(target=executor, args=(i, n1, return_dit, ))
-                p.start()
-                processes.append(p)
-            for p in processes:
-                p.join()
+        random.seed(0)
+        for i in range(14):
+            p = multiprocessing.Process(target=executor, args=(i, n1, return_dit, ))
+            p.start()
+            processes.append(p)
+        for p in processes:
+            p.join()
 
-            for i in range(14):
-                stuck_nums += return_dit[i]["stuck_nums"]
-                durations += return_dit[i]["durations"]
+        for i in range(14):
+            stuck_nums += return_dit[i]["stuck_nums"]
+            durations += return_dit[i]["durations"]
         # print(stuck_nums)
         print("Stuck Num", np.mean(stuck_nums))
         n1_stuck_nums.append(np.mean(stuck_nums))

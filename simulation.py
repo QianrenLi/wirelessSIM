@@ -88,7 +88,8 @@ class tx:
                 return 1
         return 0
 
-    def start_tx(self, current_time):
+    def start_tx(self, current_time, if_id):
+        # tx_MCS = max(1 , self.tx_mcs * (1 - if_id))
         tx_time = self.mac_queue_length * 1500 * 8 / (self.tx_mcs * 1e6)
         if not self.tx_finished:
             self.sended_data += self.mac_queue_length * 1500 * 8
@@ -115,7 +116,7 @@ class env:
     def __init__(self, txs) -> None:
         self.txs = txs
         self.compete_interval = 20e-6
-        self.interference_interval = 4e-4
+        self.interference_interval = 5e-4
         self.status = "idle"
         self.current_time = 0
         self.if_id = 0
@@ -129,19 +130,17 @@ class env:
         tx_suc = []
         send_tx = None
         _temp_txs = list(self.txs)
-        if random.random() < self.if_id:
-            return self.interference_interval
         for tx in _temp_txs:
             tx_suc.append(tx.try_tx(self.current_time))
             if tx_suc[-1] == 1:
                 send_tx = tx
-        if sum(tx_suc) > 1:
+        if sum(tx_suc) > 1 or random.random() < self.if_id:
             self.status = "busy"
             self.set_tx_failed(tx_suc, True)
         elif sum(tx_suc) == 1:
             self.set_tx_failed(tx_suc, False)
             self.status = "tx"
-            return send_tx.start_tx(self.current_time)
+            return send_tx.start_tx(self.current_time, self.if_id)
         else:
             self.status = "idle"
         return self.compete_interval
