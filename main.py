@@ -126,6 +126,14 @@ def double_interface(tx_packet_5G, tx_packet_2_4G):
     return qos_handler
 
 def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, packet_num = 30 * 30, solverType = 2, folderInd = 2):
+    ## create folder if not exist
+    def fileSetup(folderInd):
+        import os
+        if not os.path.exists(f"./fig/{folderInd}"):
+            os.makedirs(f"./fig/{folderInd}")
+        if not os.path.exists(f"./log/{folderInd}"):
+            os.makedirs(f"./log/{folderInd}")
+
     def N2Solver(latencyCh1, latencyCh2, epsilon):
         if latencyCh1 - latencyCh2 > epsilon:
             return -1
@@ -308,6 +316,7 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             for i in range(len(n2_list)):
                 writer.writerow([n1_list[i], n2_list[i], latencys[i], outage_ch1_list[i], outage_ch2_list[i]])
 
+    fileSetup(folderInd)
     if solverType == 1:
         Phase1()
     elif solverType == 2:
@@ -332,31 +341,31 @@ if __name__ == "__main__":
             packets_2_4G.update(packet_id,packets.get_time(packet_id) , ip_packet_2_4G)
         return packets_5G, packets_2_4G
     
-    dynamicN2Solver(50, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=2)
+    # dynamicN2Solver(50, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=2)
 
     # dynamicN2Solver(50, 0.001, packet_split_based_on_n1_n2, packet_num = 30, solverType = 1)
 
-    # input_dicts = []
-    # for n1 in range(38, 28, -1):
-    #     for n2 in range(38, 48):
-    #         input_dicts.append((n1,n2))
-    # cpu_num = 32
-    # import multiprocessing
-    # ## split the input_dicts into cpu_num parts and run each with solver
-    # input_dicts_list = []
-    # for i in range(cpu_num):
-    #     input_dicts_list.append([])
-    # for i in range(len(input_dicts)):
-    #     input_dicts_list[i % cpu_num].append(input_dicts[i])
-    # print(input_dicts_list)
-    # processes = []
-    # folderInd = 2; packetNum = 30
-    # for _ in range(cpu_num):
-    #     p = multiprocessing.Process(target=bunchSolver, args=(input_dicts_list[_], packet_split_based_on_n1_n2, folderInd, packetNum))
-    #     p.start()
-    #     processes.append(p)
-    # for p in processes:
-    #     p.join()
+    input_dicts = []
+    for n1 in range(38, 28, -1):
+        for n2 in range(38, 48):
+            input_dicts.append((n1,n2))
+    cpu_num = 32
+    import multiprocessing
+    ## split the input_dicts into cpu_num parts and run each with solver
+    input_dicts_list = []
+    for i in range(cpu_num):
+        input_dicts_list.append([])
+    for i in range(len(input_dicts)):
+        input_dicts_list[i % cpu_num].append(input_dicts[i])
+    print(input_dicts_list)
+    processes = []
+    folderInd = 5; packetNum = 30 * 30 * 10
+    for _ in range(cpu_num):
+        p = multiprocessing.Process(target=bunchSolver, args=(input_dicts_list[_], packet_split_based_on_n1_n2, folderInd, packetNum))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
 
 
     # qos_handlers_double_interface = []
