@@ -88,7 +88,7 @@ def single_interface(total_packets):
     del qos_handler.tx_queue, qos_handler.rx_queue
     return qos_handler
 
-def double_interface(tx_packet_5G, tx_packet_2_4G):
+def double_interface(tx_packet_5G, tx_packet_2_4G, if_id = 0.3):
     txs_5G = [
         tx(tx_mcs=600, data_threshold=0),
         # tx(tx_mcs=600),
@@ -125,7 +125,7 @@ def double_interface(tx_packet_5G, tx_packet_2_4G):
     del qos_handler.tx_queue, qos_handler.rx_queue
     return qos_handler
 
-def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, packet_num = 30 * 30, solverType = 2, folderInd = 2):
+def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, packet_num = 30 * 30, solverType = 2, folderInd = 2, epsilon2 = 0.001):
     ## create folder if not exist
     def fileSetup(folderInd):
         import os
@@ -142,20 +142,29 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
         else:
             return 0
         
-    def N1Solver(probCh1, probCh2, epsilon):
+    def N1Solver(probCh1, probCh2, epsilon1, epsilon2):
         a = 0; b = 0
-        if probCh1 > epsilon:
+        if probCh1 > epsilon1:
             a = 1
-        if probCh2 > epsilon:
+        if probCh2 > epsilon1:
             b = -1
+        if probCh1 < epsilon2:
+            a = -1
+        if probCh2 < epsilon2:
+            b = 1
         return a, b
 
-    def simuBase(tx_packet_5G, tx_packet_2_4G, prob = False):
+    def simuBase(tx_packet_5G, tx_packet_2_4G, prob = False, if_id = 0.1):
         txs_5G = [
             tx(tx_mcs=600, data_threshold=0),
-            # tx(tx_mcs=600),
+            tx(tx_mcs=600),
             # tx(tx_mcs=600),
         ]
+        if if_id == 0.1:
+            txs_5G = [
+                tx(tx_mcs=600, data_threshold=0),
+                # tx(tx_mcs=600),
+            ]
         txs_2_4G = [
             tx(tx_mcs=150, data_threshold=0),
             # tx(tx_mcs=150),
@@ -257,7 +266,10 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = packet_num)
             tx_packet_5G, tx_packet_2_G = packetSplit(n1, n2, total_packets)
             del total_packets
-            qos_handlers = simuBase(tx_packet_5G, tx_packet_2_G, True)
+            ##
+            if_ind = 0.2 if _ >= 50 else 0.1
+            ##
+            qos_handlers = simuBase(tx_packet_5G, tx_packet_2_G, True, if_ind)
             del tx_packet_5G, tx_packet_2_G
             latency = qos_handlers[0].mean_delay
             if _ == 0:
@@ -269,9 +281,9 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             prob_cha1, prob_cha2 = compute_prob(qos_handlers[3], n1, n2)
             outage_ch1_list.append(prob_cha1); outage_ch2_list.append(prob_cha2)
             print(prob_cha1, prob_cha2)
-            a,b = N1Solver(prob_cha1, prob_cha2, epsilon)
-            n2 += a
-            n1 += b
+            a,b = N1Solver(prob_cha1, prob_cha2, epsilon, epsilon2)
+            # n2 += a
+            # n1 += b
 
         ## CDF plot delay
         import matplotlib.pyplot as plt
@@ -341,31 +353,31 @@ if __name__ == "__main__":
             packets_2_4G.update(packet_id,packets.get_time(packet_id) , ip_packet_2_4G)
         return packets_5G, packets_2_4G
     
-    # dynamicN2Solver(50, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=2)
+    dynamicN2Solver(100, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=9, epsilon2 = 0.001)
 
     # dynamicN2Solver(50, 0.001, packet_split_based_on_n1_n2, packet_num = 30, solverType = 1)
 
-    input_dicts = []
-    for n1 in range(38, 28, -1):
-        for n2 in range(38, 48):
-            input_dicts.append((n1,n2))
-    cpu_num = 32
-    import multiprocessing
-    ## split the input_dicts into cpu_num parts and run each with solver
-    input_dicts_list = []
-    for i in range(cpu_num):
-        input_dicts_list.append([])
-    for i in range(len(input_dicts)):
-        input_dicts_list[i % cpu_num].append(input_dicts[i])
-    print(input_dicts_list)
-    processes = []
-    folderInd = 5; packetNum = 30 * 30 * 10
-    for _ in range(cpu_num):
-        p = multiprocessing.Process(target=bunchSolver, args=(input_dicts_list[_], packet_split_based_on_n1_n2, folderInd, packetNum))
-        p.start()
-        processes.append(p)
-    for p in processes:
-        p.join()
+    # input_dicts = []
+    # for n1 in range(38, 28, -1):
+    #     for n2 in range(38, 48):
+    #         input_dicts.append((n1,n2))
+    # cpu_num = 32
+    # import multiprocessing
+    # ## split the input_dicts into cpu_num parts and run each with solver
+    # input_dicts_list = []
+    # for i in range(cpu_num):
+    #     input_dicts_list.append([])
+    # for i in range(len(input_dicts)):
+    #     input_dicts_list[i % cpu_num].append(input_dicts[i])
+    # print(input_dicts_list)
+    # processes = []
+    # folderInd = 5; packetNum = 30 * 30 * 10
+    # for _ in range(cpu_num):
+    #     p = multiprocessing.Process(target=bunchSolver, args=(input_dicts_list[_], packet_split_based_on_n1_n2, folderInd, packetNum))
+    #     p.start()
+    #     processes.append(p)
+    # for p in processes:
+    #     p.join()
 
 
     # qos_handlers_double_interface = []
