@@ -1,0 +1,4 @@
+pcapng_file = h2h.pcapng
+output_file = h2h.npy
+duration = 30
+aggregate = 0.010
