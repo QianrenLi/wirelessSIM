@@ -54,10 +54,10 @@ def plot_scatter():
 
     plt.savefig(f'./fig/{folderInd}/N1N2_5G.pdf')
 
-def plotComparisonLatency(folder1, folder2, label1, label2, saveFolder):
-    def readCSV(folder):
+def plotComparisonLatency(folder1, folder2, file1 , file2 ,  label1, label2, saveFolder):
+    def readCSV(folder, file):
         ## read data from folder1
-        with open(f'./log/{folder}/probN1N2.csv', 'r') as f:
+        with open(f'./log/{folder}/{file}.csv', 'r') as f:
             reader = csv.reader(f)
             data = list(reader)
         # take header as labels
@@ -72,23 +72,23 @@ def plotComparisonLatency(folder1, folder2, label1, label2, saveFolder):
                 dataDict1[labels[j]].append(float(data[i][j]))
         return dataDict1
     
-    dataDict1 = readCSV(folder1)
-    dataDict2 = readCSV(folder2)
+    dataDict1 = readCSV(folder1, file1)
+    dataDict2 = readCSV(folder2, file2)
 
     # plot latency in the same page
     plt.figure()
     line_plot(plt, list(range(1, len(dataDict1['latency']) + 1)),S2MS(dataDict1['latency']), label=label1)
     line_plot(plt, list(range(1, len(dataDict2['latency']) + 1)),S2MS(dataDict2['latency']), label=label2)
-    print(np.mean(S2MS(dataDict1['latency'][51:]) - S2MS(dataDict2['latency'][51:])) / np.mean(S2MS(dataDict2['latency'][51:])))
+    print(np.mean(S2MS(dataDict1['latency'][51:100]) - S2MS(dataDict2['latency'][51:100])))
     plt.xlabel("Trials")
     plt.ylabel("Latency (ms)")
     plt.legend()
-    # plt.savefig(f"./fig/{saveFolder}/latencyCompar.pdf", format = 'pdf', dpi = 300)
+    plt.savefig(f"./fig/{saveFolder}/latencyCompar.pdf", format = 'pdf', dpi = 300)
 
-def plotComparisonN1N2(folder1, folder2, label1, label2, saveFolder):
-    def readCSV(folder):
+def plotComparisonN1N2(folder1, folder2, file1, file2 , label1, label2, saveFolder):
+    def readCSV(folder, file):
         ## read data from folder1
-        with open(f'./log/{folder}/probN1N2.csv', 'r') as f:
+        with open(f'./log/{folder}/{file}.csv', 'r') as f:
             reader = csv.reader(f)
             data = list(reader)
         # take header as labels
@@ -103,19 +103,19 @@ def plotComparisonN1N2(folder1, folder2, label1, label2, saveFolder):
                 dataDict1[labels[j]].append(float(data[i][j]))
         return dataDict1
     
-    dataDict1 = readCSV(folder1)
-    dataDict2 = readCSV(folder2)
+    dataDict1 = readCSV(folder1, file1)
+    dataDict2 = readCSV(folder2, file2)
 
     # plot latency in the same page
     plt.figure()
     line_plot(plt, list(range(1, len(dataDict1['N1']) + 1)),dataDict1['N1'], label=label1 + " N1")
     line_plot(plt, list(range(1, len(dataDict1['N2']) + 1)),dataDict1['N2'], label=label1 + " N2")
-    line_plot(plt, list(range(1, len(dataDict2['N1']) + 1)),dataDict2['N1'], label=label2 + " N1", style='--')
+    # line_plot(plt, list(range(1, len(dataDict2['N1']) + 1)),dataDict2['N1'], label=label2 + " N1", style='--')
     line_plot(plt, list(range(1, len(dataDict2['N2']) + 1)),dataDict2['N2'], label=label2 + " N2", style='--')
     plt.xlabel("Trials")
     plt.ylabel("N1/N2")
     plt.legend()
     plt.savefig(f"./fig/{saveFolder}/N1N2Compa.pdf", format = 'pdf', dpi = 300)
 
-plotComparisonLatency(8,9,"With control", "Without control", saveFolder = 8)
-# plotComparisonN1N2(8,9,"With control", "Without control", saveFolder = 8)
+plotComparisonLatency(15,17, "probN1N2" , "N2" , "With control", "Without control", saveFolder = 17)
+plotComparisonN1N2(15,17, "probN1N2" ,"N2" ,"With control", "Without control", saveFolder = 17)

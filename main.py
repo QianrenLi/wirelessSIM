@@ -125,7 +125,29 @@ def double_interface(tx_packet_5G, tx_packet_2_4G, if_id = 0.3):
     del qos_handler.tx_queue, qos_handler.rx_queue
     return qos_handler
 
-def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, packet_num = 30 * 30, solverType = 2, folderInd = 2, epsilon2 = 0.001):
+def dynamicN2Solver(simulation_time, epsilon, packetSplit, n1 = 38, n2 = 38, packet_num = 30 * 30, solverType = 2, folderInd = 2, epsilon2 = 0.001, is_control_stop = False):
+    """
+    Heuristic Solver to solve the optimization problem in control packet number.
+    Hint: note that two parameter can be changed to influence the interference, contention situation.
+    1. The MCS value, which generally influence the time take the transmit data
+    2. The contention device
+    3. The interference index (which represent the probability to loss random packet)
+
+    Args:
+        simulation_time (_type_): _description_
+        epsilon (_type_): _description_
+        packetSplit (_type_): _description_
+        n1 (int, optional): _description_. Defaults to 38.
+        n2 (int, optional): _description_. Defaults to 38.
+        packet_num (_type_, optional): _description_. Defaults to 30*30.
+        solverType (int, optional): _description_. Defaults to 2.
+        folderInd (int, optional): _description_. Defaults to 2.
+        epsilon2 (float, optional): _description_. Defaults to 0.001.
+        is_control_stop (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
     ## create folder if not exist
     def fileSetup(folderInd):
         import os
@@ -155,27 +177,38 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
         return a, b
 
     def simuBase(tx_packet_5G, tx_packet_2_4G, prob = False, if_id = 0.1):
-        txs_5G = [
-            tx(tx_mcs=600, data_threshold=0),
-            tx(tx_mcs=600),
-            # tx(tx_mcs=600),
-        ]
-        if if_id == 0.1:
-            txs_5G = [
-                tx(tx_mcs=600, data_threshold=0),
+        MCS5G = 150
+        MCS24G = int(MCS5G / 3)
+        if if_id == 0:
+            txs_5G: list[tx] = [
+                tx(tx_mcs=MCS5G, data_threshold=0),
                 # tx(tx_mcs=600),
             ]
+        if if_id == 0.1:
+            txs_5G = [
+                tx(tx_mcs=MCS5G, data_threshold=0),
+                tx(tx_mcs=MCS5G * 1.5),
+                # tx(tx_mcs=600),
+            ]
+        if if_id == 0.2:
+            txs_5G = [
+                tx(tx_mcs=MCS5G, data_threshold=0),
+                tx(tx_mcs=MCS5G * 1.5),
+                tx(tx_mcs=MCS5G * 1.5),
+                # tx(tx_mcs=600),
+            ]
+
         txs_2_4G = [
-            tx(tx_mcs=150, data_threshold=0),
+            tx(tx_mcs=MCS24G, data_threshold=0),
             # tx(tx_mcs=150),
             # tx(tx_mcs=150),
             # tx(tx_mcs=150),
         ]
         txs_5G[0].tx_packets, txs_2_4G[0].tx_packets = tx_packet_5G, tx_packet_2_4G
         env_5G = env(txs_5G)
-        env_5G.if_id = 0.1
+        env_5G.if_id = 0.00
         env_2_4G = env(txs_2_4G)
-        env_2_4G.if_id = 0
+        env_2_4G.if_id = 0.00
         while True:
             if env_5G.txs[0].is_tx_finish() and env_2_4G.txs[0].is_tx_finish():
                 break
@@ -199,19 +232,22 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             return qos_sys, qos_5G, qos_2_4G, _[1]
         return qos_sys, qos_5G, qos_2_4G
     
-    def Phase1():
-        n2 = 50
-        n2_list = []; latency5G_list = []; latency_2_4G_list = []
+    def Phase1(n2):
+        # n2 = 50
+        n2_list = []; latency5G_list = []; latency_2_4G_list = []; latency_list = []
         for _ in range(simulation_time):
             total_packets = generate_packets(path = "./data/proj_6.25MB.npy", packet_num = packet_num)
             tx_packet_5G, tx_packet_2_G = packetSplit(n2, n2, total_packets)
             del total_packets
-            qos_handlers = simuBase(tx_packet_5G, tx_packet_2_G)
+            if_ind = 0.2 if _ >= 50 else 0.1
+            if _ >= 100:
+                if_ind = 0.1
+            qos_handlers = simuBase(tx_packet_5G, tx_packet_2_G, if_id = if_ind)
             del tx_packet_5G, tx_packet_2_G
             latencyCh1 = qos_handlers[1].mean_delay ; latencyCh2 = qos_handlers[2].mean_delay
-            n2_list.append(n2); latency5G_list.append(latencyCh1); latency_2_4G_list.append(latencyCh2)
+            n2_list.append(n2); latency5G_list.append(latencyCh1); latency_2_4G_list.append(latencyCh2); latency_list.append(qos_handlers[0].mean_delay)
             print(latencyCh1, latencyCh2)
-            direction = N2Solver(latencyCh1, latencyCh2, epsilon)
+            direction = N2Solver(latencyCh1, latencyCh2, epsilon) if not is_control_stop else 0
             n2 += direction
             print(n2)
 
@@ -222,8 +258,9 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
         plt.savefig(f"./fig/{folderInd}/N2.pdf", format = 'pdf', dpi = 300)
 
         plt.figure()
-        line_plot(plt, range(len(n2_list)), np.array(latency5G_list) * 1000, label= "5G")
-        line_plot(plt, range(len(latency_2_4G_list)), np.array(latency_2_4G_list) * 1000, style='-o', label = "2.4G")
+        # line_plot(plt, range(len(n2_list)), np.array(latency5G_list) * 1000, label= "5G")
+        # line_plot(plt, range(len(latency_2_4G_list)), np.array(latency_2_4G_list) * 1000, style='-o', label = "2.4G")
+        line_plot(plt, range(len(latency_list)), np.array(latency_list) * 1000, style='--', label="System")
         plt.xlabel("Trials")
         plt.ylabel("Latency (ms)")
         plt.legend()
@@ -231,12 +268,13 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
 
         import csv
         ## save data to csv
-        with open('./log/2/N2.csv', 'w', newline='') as csvfile:
+        with open(f'./log/{folderInd}/N2.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['N2', 'latency5G', 'latency2.4G'])
+            writer.writerow(['N2', 'latency5G', 'latency2.4G', 'latency'])
             for i in range(len(n2_list)):
-                writer.writerow([n2_list[i], latency5G_list[i], latency_2_4G_list[i]])
+                writer.writerow([n2_list[i], latency5G_list[i], latency_2_4G_list[i], latency_list[i]])
 
+        return n2
 
     def Optimum(n1 ,n2):
         n1_list = []; n2_list = []; latency5G_list = []; latency_2_4G_list = []; latencys = []
@@ -254,12 +292,12 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             writer.writerow(['N1', 'N2', 'latency'])
             for i in range(len(n1_list)):
                 writer.writerow([n1_list[i], n2_list[i], latencys[i]])
+        pass
     
-    def Phase2():
+    def Phase2(n1, n2):
         def compute_prob(indexes, n1, n2):
             return np.sum((np.array(indexes) == n2)) / len(indexes), np.sum((np.array(indexes) == n1 + 1)) / len(indexes)
-        n2 = 38
-        n1 = 38
+        # n2 = 37
         n2_list = [];  n1_list = []; outage_ch1_list = [] ;  outage_ch2_list = [] ; latencys = []
         delayListInitial = []; delayListStationary = []
         for _ in range(simulation_time):
@@ -268,8 +306,10 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             del total_packets
             ##
             if_ind = 0.2 if _ >= 50 else 0.1
+            if _ >= 100:
+                if_ind = 0.1
             ##
-            qos_handlers = simuBase(tx_packet_5G, tx_packet_2_G, True, if_ind)
+            qos_handlers = simuBase(tx_packet_5G, tx_packet_2_G, prob = True, if_id = if_ind)
             del tx_packet_5G, tx_packet_2_G
             latency = qos_handlers[0].mean_delay
             if _ == 0:
@@ -281,9 +321,9 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             prob_cha1, prob_cha2 = compute_prob(qos_handlers[3], n1, n2)
             outage_ch1_list.append(prob_cha1); outage_ch2_list.append(prob_cha2)
             print(prob_cha1, prob_cha2)
-            a,b = N1Solver(prob_cha1, prob_cha2, epsilon, epsilon2)
-            # n2 += a
-            # n1 += b
+            a,b = N1Solver(prob_cha1, prob_cha2, epsilon, epsilon2) if not is_control_stop else (0 , 0)
+            n2 += a
+            n1 += b
 
         ## CDF plot delay
         import matplotlib.pyplot as plt
@@ -327,14 +367,15 @@ def dynamicN2Solver(simulation_time, epsilon, packetSplit,n1 = 38, n2 = 38, pack
             writer.writerow(['N1', 'N2', 'latency', 'probCh1', 'probCh2'])
             for i in range(len(n2_list)):
                 writer.writerow([n1_list[i], n2_list[i], latencys[i], outage_ch1_list[i], outage_ch2_list[i]])
+        pass
 
     fileSetup(folderInd)
     if solverType == 1:
-        Phase1()
+        return Phase1(n2)
     elif solverType == 2:
-        Optimum(n1,n2)
+        return Optimum(n1,n2)
     elif solverType == 3:
-        Phase2()
+        return Phase2(n1, n2)
 
 def bunchSolver(input_tuples, packet_split_based_on_n1_n2, folderInd, packetNum):
     for tupleVal in input_tuples:
@@ -353,7 +394,12 @@ if __name__ == "__main__":
             packets_2_4G.update(packet_id,packets.get_time(packet_id) , ip_packet_2_4G)
         return packets_5G, packets_2_4G
     
-    dynamicN2Solver(100, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=9, epsilon2 = 0.001)
+
+    # n2 = dynamicN2Solver(100, 0.0005, packet_split_based_on_n1_n2, packet_num = 30, solverType = 1, folderInd=14, epsilon2 = 0.001)
+    # dynamicN2Solver(150, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=15, epsilon2 = 0.001, n1 = n2, n2 = n2)
+    # dynamicN2Solver(150, 0.02, packet_split_based_on_n1_n2, packet_num = 30, solverType = 3, folderInd=16, epsilon2 = 0.001, is_control_stop=True, n1 = n2, n2 = n2)
+    ## 
+    dynamicN2Solver(150, 0.0005, packet_split_based_on_n1_n2, packet_num = 30, solverType = 1, folderInd=17, epsilon2 = 0.001, n1 = 37, n2 = 37)
 
     # dynamicN2Solver(50, 0.001, packet_split_based_on_n1_n2, packet_num = 30, solverType = 1)
 

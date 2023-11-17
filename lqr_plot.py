@@ -37,7 +37,7 @@ def twin_ax_legend(ax, **kwargs):
     ax.legend(lns, labs)
     return ax
 
-def line_plot(ax, x_vals, y_vals, style = '-*', label = "None"):
-    ax.style.use("grayscale")
+def line_plot(ax, x_vals, y_vals, style = '-*', label = "None", is_gray = False):
+    ax.style.use("grayscale") if is_gray else None
     ax.grid(True, alpha = 0.5)
     return ax.plot(x_vals, y_vals, style, label = label)
